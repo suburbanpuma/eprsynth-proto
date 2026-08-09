@@ -70,9 +70,11 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 
 | Feature | Status | Implementation Notes |
 | :--- | :---: | :--- |
+| **Volume** | ✅ | its a volume knob. |
+| **Gender Shift / Note-locked Formant Shifter** | ✅ | Formants drift proportionally to how far the note is from the recorded pitch. |
+| **Gender / Formant Shifter** | ✅ | GENDER multiplies the VT resonance frequencies and stretches the DSS axis by gf (0.71×–1.41×). Formants physically move in the model, so at ratio == 1 turning the slider down darkens/masculinizes and turning it up brightens/femininizes — symmetric, no note dependence. The source curve and source resonance (glottal tilt, low‑frequency content) stay untouched, so it reads as tract size, not as a filter sweep. |
 | **Brightness / High-EQ** | ⚪ | **Missing**: Requires Equalization (SPP). |
 | **Tension / Mid-EQ** | ⚪ | **Missing**: Requires Equalization (SPP). |
-| **Gender / Formant Shifter** | ⚪ | **Missing**: Requires EpR anchor stretching (machinery exists in `_join` but not exposed as control). |
 | **Voice Conversion** | ⚪ | **Missing**: No cross-synthesis/morphing. |
 | **Auto Pitch Model Skill** | ⚪ | **Missing**: No automatic pitch correction/smoothing rules. |
 | **Vocal Style** | ⚪ | **Missing**: Manifest has stub `styles=base`, but no style switching logic. |
