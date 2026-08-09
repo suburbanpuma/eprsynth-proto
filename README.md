@@ -28,7 +28,7 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 
 | Feature | Status | Implementation Notes |
 | :--- | :---: | :--- |
-| **SPP Analysis** (Peak Tracking/Phase) | ⚪ | **Missing**: Current analysis is frame-independent; no peak continuation or phase storage. |
+| **SPP Analysis** (Peak Tracking/Phase) | ✅ | **Missing**: Current analysis is frame-independent; no peak continuation or phase storage. |
 | **Transposition** (Region Shift) | 🟡 | `synth.py`: Constant-ratio parametric transposition ($f \cdot \text{ratio}$). Paper uses SPP region shifting with spline interpolation. |
 | **Transposition Phase Correction** | ⚪ | **Missing**: Paper Eq. 1-2 (accumulated phase correction for shifted regions). |
 | **Equalization** (Timbre Change) | ⚪ | **Missing**: Requires SPP region amplitude mapping to target envelope. |
