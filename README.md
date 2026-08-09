@@ -44,6 +44,9 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 | **Correction Spreading** (Fig. 6) | ⚪ | **Missing**: Paper spreads phase correction over $K$ frames. We use a spectral warp ramp instead. |
 | **Spectral Shape Concatenation** (Fig. 7) | 🟡 | `synth.py`: `_join` implements EpR anchor mapping + SSIntp differential envelope morphing (parametric domain). |
 | **Unvoiced/Voiced Joints** | ✅ | `synth.py`: Gain crossfade (Xfade) for unvoiced boundaries. |
+| **Predictive Amplitude Shaping** (PAS) | ⚪ | **Missing**: Clynes' rule for natural amplitude contours [ICMC-01 §5.1]. |
+| **Pitch Contour Model** | 🟡 | `plan.py`: Vowel-onset alignment implemented. Smooth transition model missing. |
+| **Expressiveness Rules** (Friberg/Sundberg) | ⚪ | **Missing**: Rule-based deviation system. |
 
 ### 4. MicroScore Parameters (Note Level)
 *References: ICMC-01 §5 (Table), VOCALOID Diagram*
@@ -70,19 +73,19 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 
 | Feature | Status | Implementation Notes |
 | :--- | :---: | :--- |
+| **Vocal Style** | ⚪ | **Missing**: Manifest has stub `styles=base`, but no style switching logic. |
+| **Language Picker (G2P changer)** | ⚪ | **Missing**: currently direct phoneme input. |
 | **Volume** | ✅ | its a volume knob. |
 | **Gender Shift / Note-locked Formant Shifter** | ✅ | Formants drift proportionally to how far the note is from the recorded pitch. |
 | **Gender / Formant Shifter** | ✅ | GENDER multiplies the VT resonance frequencies and stretches the DSS axis by gf (0.71×–1.41×). Formants physically move in the model, so at ratio == 1 turning the slider down darkens/masculinizes and turning it up brightens/femininizes — symmetric, no note dependence. The source curve and source resonance (glottal tilt, low‑frequency content) stay untouched, so it reads as tract size, not as a filter sweep. |
+| **Pitch** | ✅ | Slider 50 = concert pitch (A4 = 440 Hz); 0 = −100 cents (one semitone down); 100 = +100 cents (one semitone up). Because it's applied through the per‑row transposition ratio, the SPP renderer's eq.‑2 phase accumulation and the formant anchoring (vt_scale = gender·ratio^gshift) all react consistently — push it up a semitone and you get the slight natural formant drift you tuned G‑SHIFT for, push G‑SHIFT to 0 and the timbre stays locked while the melody moves. |
+| **Voicing** | ⚪ | -. |
+| **Breathiness** | ⚪ | -. |
 | **Brightness / High-EQ** | ⚪ | **Missing**: Requires Equalization (SPP). |
 | **Tension / Mid-EQ** | ⚪ | **Missing**: Requires Equalization (SPP). |
 | **Voice Conversion** | ⚪ | **Missing**: No cross-synthesis/morphing. |
 | **Auto Pitch Model Skill** | ⚪ | **Missing**: No automatic pitch correction/smoothing rules. |
-| **Vocal Style** | ⚪ | **Missing**: Manifest has stub `styles=base`, but no style switching logic. |
-| **Grapheme-to-Phoneme (G2P)** | ⚪ | **Missing**: Lyrics input branch (VOCALOID diagram left side). |
 | **Syllabic Adjustment** | ⚪ | **Missing**: Automatic syllable-to-note assignment. |
-| **Predictive Amplitude Shaping** (PAS) | ⚪ | **Missing**: Clynes' rule for natural amplitude contours [ICMC-01 §5.1]. |
-| **Pitch Contour Model** | 🟡 | `plan.py`: Vowel-onset alignment implemented. Smooth transition model missing. |
-| **Expressiveness Rules** (Friberg/Sundberg) | ⚪ | **Missing**: Rule-based deviation system. |
 
 ### 6. Database & Tools
 *References: ICMC-01 §6, Dev Tools*
