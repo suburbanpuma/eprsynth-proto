@@ -82,9 +82,9 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 | **Gender / Formant Shifter** | ✅ | GENDER multiplies the VT resonance frequencies and stretches the DSS axis by gf (0.71×–1.41×). Formants physically move in the model, so at ratio == 1 turning the slider down darkens/masculinizes and turning it up brightens/femininizes — symmetric, no note dependence. The source curve and source resonance (glottal tilt, low‑frequency content) stay untouched, so it reads as tract size, not as a filter sweep. |
 | **Pitch** | ✅ | Slider 50 = concert pitch (A4 = 440 Hz); 0 = −100 cents (one semitone down); 100 = +100 cents (one semitone up). Because it's applied through the per‑row transposition ratio, the SPP renderer's eq.‑2 phase accumulation and the formant anchoring (vt_scale = gender·ratio^gshift) all react consistently — push it up a semitone and you get the slight natural formant drift you tuned G‑SHIFT for, push G‑SHIFT to 0 and the timbre stays locked while the melody moves. |
 | **Voicing** | 🟡 | Currently only works in extremes, 0 will unvoice the synthesized string completely but 1-100 doesn't change voicing level. |
-| **Breathiness** | 🟡 | Implemented naturally via the voiced residual models, but doesn't produce a noticeable effect. Disabled. |
-| **Brightness / High-EQ** | 🟡 | In engine, broken. Disabled. |
-| **Tension / Mid-EQ** | 🟡 | In engine, broken. Disabled. |
+| **Breathiness** | 🟡 | Implemented naturally via the voiced residual models, but doesn't produce a noticeable effect. |
+| **Brightness / High-EQ** | ✅ | SPP+artificial high shelf EQ. |
+| **Tension / Mid-EQ** | ✅ | SPP+artificial mid shelf EQ.. |
 | **Voice Conversion** | ⚪ | **Missing**: No cross-synthesis/morphing. |
 | **Auto Pitch Model Skill** | ⚪ | **Missing**: coming veeeeery later on. expect simple hmm based autopitch ijbol. |
 
