@@ -28,10 +28,10 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 
 | Feature | Status | Implementation Notes |
 | :--- | :---: | :--- |
-| **SPP Analysis** (Peak Tracking/Phase) | ✅ | **Missing**: Current analysis is frame-independent; no peak continuation or phase storage. |
-| **Transposition** (Region Shift) | 🟡 | `synth.py`: Constant-ratio parametric transposition ($f \cdot \text{ratio}$). Paper uses SPP region shifting with spline interpolation. |
-| **Transposition Phase Correction** | ⚪ | **Missing**: Paper Eq. 1-2 (accumulated phase correction for shifted regions). |
-| **Equalization** (Timbre Change) | ⚪ | **Missing**: Requires SPP region amplitude mapping to target envelope. |
+| **SPP Analysis** (Peak Tracking/Phase) | ✅ | added yay |
+| **Transposition** (Region Shift) | ✅ | Harmonics are shifted by f * ratio (SMAC-03 §5.1). |
+| **Transposition Phase Correction** | ✅ | The accumulated phase increment Δφ = 2π · i · pitch · (transp − 1) · Δt is applied per harmonic using the stored index k (mapped to i). This preserves vertical phase coherence during transposition. |
+| **Equalization** (Timbre Change) | ✅ | present in core engine, no user-setting yet |
 | **Time Scaling** | 🟡 | `synth.py`: Sustain looping + hold-last-frame. Paper uses near-lossless frequency-domain time scaling [8]. |
 
 ### 3. Concatenation & Continuity
@@ -97,8 +97,3 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 | **Label Writer** | ✅ | `gui.py`: Wav+Lab -> Model pipeline. |
 | **OTO -> Batchlab** | ✅ | `oto_gui.py`: Converter with alias splitting (Romaji/Kana/ARPAbet). |
 
-### Summary of Next Steps
-1.  **SPP Front-end**: Implement peak tracking and phase storage to unlock **Transposition (Eq 1-2)**, **Equalization**, and **Gender/Formant Shifting**.
-2.  **Expression Layer**: Implement **Pitch Envelope** and **Vibrato** synthesis (requires storing/playing back pitch curves).
-3.  **Dynamics**: Implement **Loudness/Breathiness** curves (mapping to gain and `vr_gain`).
-4.  **Rules**: Implement **Clynes PAS** and **Pitch Contour** smoothing for naturalness.
