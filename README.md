@@ -64,13 +64,13 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 | **Pitch** | ✅ | F0 rendering following singer's modeled pitch, the drift through transitions (the engine's inherent portamento, since rows render the recorded f0 × ratio rather than a snapped MIDI pitch), flat-ish sustain loops, and gaps where frames are unvoiced. Moving the PITCH fader slides the whole curve in fractional-row precision, and because segments are built from self._rows, any later engine-side pitch modeling (explicit portamento curves, release tails, vibrato) automatically appears here the moment it affects the rendered frames. Unit arrays are cached in DB._load, so redrawing stays cheap (~48 samples/row). |
 | **Voicing** | ✅ | Works like the global parameter. |
 | **Voicing** | ✅ | Works like the global parameter. |
+| **Vibrato** (Type/Depth/Rate) | ✅ | Vibrato tool added. No modeling yet. |
 | **Breathiness** | ⚪ | Missing. |
 | **Brightness** | ⚪ | Missing. |
 | **Tension** | ⚪ | Missing. |
 | **Attack Type/Duration** | ⚪ | **Missing**: No specific attack templates (Sharp/Soft/High). |
 | **Body Type/Duration** | ⚪ | **Missing**: No specific body templates. |
 | **Release Type/Duration** | ⚪ | **Missing**: No specific release templates. |
-| **Vibrato** (Type/Depth/Rate) | ⚪ | **Missing**: No vibrato synthesis or templates. |
 | **Transition Type** (Legato/Staccato) | 🟡 | `plan.py`: Implicit legato via overlap/anticipation. No explicit Staccato/Portamento controls. |
 | **Opening of Vowels** | ⚪ | **Missing**: Formant scaling control. |
 
