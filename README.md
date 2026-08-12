@@ -55,10 +55,11 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 | :--- | :---: | :--- |
 | **Pitch** (MIDI) | ✅ | `plan.py`/`roll_gui.py`: Input via piano roll. |
 | **Duration** | ✅ | `plan.py`: Note length in ms. |
+| **Lyrics** | ⚪ |  **Missing**:: Only direct phoneme entry per note. |
 | **Grapheme to phoneme conversion** | ⚪ | **Missing**: currently direct phoneme input only. |
-| **Vocal Style** | ⚪ | **Missing**: Manifest has stub `styles=base`, but no style switching logic. |
 | **Syllabic Adjustment** | ⚪ | **Missing**: Automatic syllable-to-note assignment. |
-| **Phonemes** (Lyrics) | ✅ | `roll_gui.py`: Direct phoneme entry per note. |
+| **Phonemes** | ✅ | `roll_gui.py`: Direct phoneme entry per note. |
+| **Vocal Style** | ⚪ | **Missing**: Manifest has stub `styles=base`, but no style switching logic. |
 | **Phoneme Timing** | ✅ | `plan.py`/`roll_gui.py`: Per-phoneme overrides (P1/P2/Onsets), anticipation, alignment. |
 | **Volume** | ✅ | Volume knob automation. |
 | **Gender / Formant Shifter** | ✅ | Works like the global parameter. |
@@ -69,11 +70,8 @@ Based on the provided papers (**SMAC-03** for SPP/Concatenation, **ICMC-01** for
 | **Breathiness** | ✅ | Works like the global parameter. |
 | **Brightness** | ✅ | Works like the global parameter. |
 | **Tension** | ✅ | Works like the global parameter. |
-| **Attack Type/Duration** | ⚪ | **Missing**: No specific attack templates (Sharp/Soft/High). |
-| **Body Type/Duration** | ⚪ | **Missing**: No specific body templates. |
-| **Release Type/Duration** | ⚪ | **Missing**: No specific release templates. |
-| **Transition Type** (Legato/Staccato) | 🟡 | `plan.py`: Implicit legato via overlap/anticipation. No explicit Staccato/Portamento controls. |
-| **Opening of Vowels** | ⚪ | **Missing**: Formant scaling control. |
+| **Portamento** | ✅ | **Missing**: Pitch portamento between notes. The model model replaces the transition segment with a shaped curve between the two note pitches (flat sustains + MOD give the mockup's baseline), while unit audio stays untouched. |
+| **Attack/Body/Release Effects** | ⚪ | **Missing**: No template implementation yet. |
 
 ### 5. Global Controls & Expression
 *References: ICMC-01 §5.1, VOCALOID Diagram*
