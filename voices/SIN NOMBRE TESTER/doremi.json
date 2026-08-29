@@ -1,0 +1,357 @@
+{
+ "format": "svs-sequence",
+ "version": 4,
+ "bpm": 120.0,
+ "sig": "4/4",
+ "params": {
+  "vol": 100.0,
+  "gen": 50.0,
+  "gsh": 10.0,
+  "pit": 50.0,
+  "voi": 100.0,
+  "bre": 50.0,
+  "bri": 50.0,
+  "ten": 50.0,
+  "mod": 100.0,
+  "ope": 50.0
+ },
+ "curves": {
+  "pit": [],
+  "vol": [],
+  "gen": [],
+  "voi": [],
+  "bre": [],
+  "bri": [],
+  "ten": [],
+  "f1": [],
+  "f2": [],
+  "f3": []
+ },
+ "vibratos": [
+  {
+   "s": 3575.0,
+   "e": 4000.0,
+   "c": 48.0,
+   "amp": 57.142857142857146,
+   "freq": 6.0,
+   "fin": 0.42745098039215684,
+   "fout": 0.5
+  }
+ ],
+ "notes": [
+  {
+   "start": 500.0,
+   "dur": 250.0,
+   "midi": 48,
+   "phonemes": [
+    "d",
+    "o"
+   ],
+   "onsets": [
+    0.0,
+    250.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {
+    "c1": [
+     55.83333333333337,
+     145.0
+    ]
+   },
+   "pre": -125.0,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 120.0,
+   "pt_dr": 120.0,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 750.0,
+   "dur": 250.0,
+   "midi": 50,
+   "phonemes": [
+    "rr",
+    "e"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {
+    "c1": [
+     30.000000000000114,
+     250.0
+    ]
+   },
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 205.8918918918919,
+   "pt_dr": 206.91891891891893,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 1000.0,
+   "dur": 250.0,
+   "midi": 52,
+   "phonemes": [
+    "m",
+    "i"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {
+    "c1": [
+     20.0,
+     249.9999999999999
+    ]
+   },
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 211.027027027027,
+   "pt_dr": 205.8918918918919,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 1250.0,
+   "dur": 250.0,
+   "midi": 53,
+   "phonemes": [
+    "f",
+    "a"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {
+    "c1": [
+     68.33333333333326,
+     250.0
+    ]
+   },
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 206.91891891891893,
+   "pt_dr": 213.0810810810811,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 1500.0,
+   "dur": 500.0,
+   "midi": 55,
+   "phonemes": [
+    "s",
+    "o"
+   ],
+   "onsets": [
+    0.0,
+    250.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {
+    "rel": [
+     335.0,
+     739.6999999999998
+    ]
+   },
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 120.0,
+   "pt_dr": 120.0,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 2000.0,
+   "dur": 250.0,
+   "midi": 57,
+   "phonemes": [
+    "l",
+    "a"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {},
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 210.0,
+   "pt_dr": 205.8918918918919,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 2250.0,
+   "dur": 250.0,
+   "midi": 53,
+   "phonemes": [
+    "f",
+    "a"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {},
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 120.0,
+   "pt_dr": 120.0,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 2500.0,
+   "dur": 250.0,
+   "midi": 52,
+   "phonemes": [
+    "m",
+    "i"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {},
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 207.94594594594594,
+   "pt_dr": 210.0,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 2750.0,
+   "dur": 250.0,
+   "midi": 50,
+   "phonemes": [
+    "sil"
+   ],
+   "onsets": [
+    0.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {},
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 120.0,
+   "pt_dr": 120.0,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 3000.0,
+   "dur": 250.0,
+   "midi": 50,
+   "phonemes": [
+    "rr",
+    "e"
+   ],
+   "onsets": [
+    0.0,
+    125.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {},
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 208.972972972973,
+   "pt_dr": 211.027027027027,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 3250.0,
+   "dur": 250.0,
+   "midi": 48,
+   "phonemes": [
+    "sil"
+   ],
+   "onsets": [
+    0.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": null,
+   "ov": {},
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 120.0,
+   "pt_dr": 120.0,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  },
+  {
+   "start": 3500.0,
+   "dur": 500.0,
+   "midi": 48,
+   "phonemes": [
+    "dh",
+    "o"
+   ],
+   "onsets": [
+    0.0,
+    250.0
+   ],
+   "chain": null,
+   "vow": null,
+   "rel": 391.66666666666697,
+   "ov": {
+    "rel": [
+     105.0,
+     330.0
+    ]
+   },
+   "pre": null,
+   "pt_ol": 0.0,
+   "pt_or": 0.0,
+   "pt_dl": 210.0,
+   "pt_dr": 212.05405405405403,
+   "pt_depl": 0.0,
+   "pt_depr": 0.0
+  }
+ ]
+}
