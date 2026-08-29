@@ -6,18 +6,23 @@ concatenative synthesizer based on the og papers that led to vocaloid 1. vibecod
 macos: 
 
 piano roll
+
 python3 -m svs.roll_ui
 
 devkit
+
 python3 -m svs.gui
 
 g2p tester
+
 python3 -m svs.g2p_gui
 
 epr modeling tester
+
 python3 -m svs.epr_gui
 
 concatenator tester
+
 python3 -m svs.test_gui
 
 
