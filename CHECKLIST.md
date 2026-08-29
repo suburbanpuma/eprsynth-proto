@@ -51,11 +51,11 @@
 | :--- | :---: | :--- |
 | **Pitch** (MIDI) | ✅ | `plan.py`/`roll_gui.py`: Input via piano roll. |
 | **Duration** | ✅ | `plan.py`: Note length in ms. |
-| **Lyrics** | ⚪ |  **Missing**:: Only direct phoneme entry per note. |
-| **Grapheme to phoneme conversion** | ⚪ | **Missing**: currently direct phoneme input only. |
-| **Syllabic Adjustment** | ⚪ | **Missing**: Automatic syllable-to-note assignment. |
+| **Lyrics** | ✅ | Lyrics input finally working. |
+| **Grapheme to phoneme conversion** | ✅ | Uses OpenUTAU compatible g2p models. |
+| **Syllabic Adjustment** | ⚪ | **Missing**: Currently, theres no syllabic phoneme adjustment. |
 | **Phonemes** | ✅ | `roll_gui.py`: Direct phoneme entry per note. |
-| **Vocal Style** | ⚪ | **Missing**: Manifest has stub `styles=base`, but no style switching logic. |
+| **Vocal Style** | ⚪ | **Missing**: Manifest supports styles listings but there's no way to add them into the db or switch them in engine. |
 | **Phoneme Timing** | ✅ | `plan.py`/`roll_gui.py`: Per-phoneme overrides (P1/P2/Onsets), anticipation, alignment. |
 | **Volume** | ✅ | Volume knob automation. |
 | **Gender / Formant Shifter** | ✅ | Works like the global parameter. |
@@ -83,9 +83,9 @@
 | **Voicing** | ✅ | 0 will unvoice the synthesized string completely, bringing it gradually up. |
 | **Breathiness** | ✅ | Implemented naturally via the voiced residual models. |
 | **Brightness / High-EQ** | ✅ | SPP+artificial high shelf EQ. |
-| **Tension / Mid-EQ** | ✅ | SPP+artificial mid shelf EQ.. |
+| **Tension / Mid-EQ** | ✅ | SPP+artificial mid shelf EQ. |
 | **Voice Conversion** | ⚪ | **Missing**: No cross-synthesis/morphing. |
-| **Auto Pitch Model Skill** | ⚪ | **Missing**: coming veeeeery later on. expect simple hmm based autopitch ijbol. |
+| **Auto Pitch Model Skill** | ⚪ | **Missing**: experimental diffsinger autopitch model support... maybe in 30 years. |
 
 ### 6. Database & Tools
 *References: ICMC-01 §6, Dev Tools*
