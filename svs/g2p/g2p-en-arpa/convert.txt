@@ -1,0 +1,10 @@
+_r r
+ax ax
+dx d
+el l
+en n
+em n
+eng ng
+tr t r
+dr d r
+q gs

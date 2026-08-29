@@ -1,0 +1,13 @@
+{
+ "exc_template": "delta",
+ "use_spp": true,
+ "defaults": {
+  "gsh": 10.0,
+  "gen": 50.0,
+  "pit": 50.0,
+  "voi": 100.0,
+  "bre": 50.0,
+  "bri": 50.0,
+  "ten": 50.0
+ }
+}

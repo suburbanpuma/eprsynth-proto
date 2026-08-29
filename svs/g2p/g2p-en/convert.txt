@@ -1,0 +1,30 @@
+aa	A
+ae	{
+ah	V
+ao	O
+aw	aU
+ay	aI
+ax	@
+ch	tS
+dh	D
+dx	4
+eh	E
+er	3
+ey	eI
+hh	h
+ih	I
+iy	i
+jh	dZ
+ng	N
+ow	oU
+oy	OI
+q	?
+r	r\
+sh	S
+th	T
+uh	U
+uw	u
+y	j
+zh	Z
+tr	t r\
+dr	d r\

@@ -1,0 +1,227 @@
+あ a
+い i
+う u
+え e
+お o
+か k a
+き k i
+く k u
+け k e
+こ k o
+が g a
+ぎ g i
+ぐ g u
+げ g e
+ご g o
+さ s a
+し sh i
+す s u
+せ s e
+そ s o
+ざ z a
+じ j i
+ず z u
+ぜ z e
+ぞ z o
+た t a
+ち ch i
+つ ts u
+て t e
+と t o
+だ d a
+ぢ j i
+づ z u
+で d e
+ど d o
+な n a
+に n i
+ぬ n u
+ね n e
+の n o
+は h a
+ひ h i
+ふ f u
+へ h e
+ほ h o
+ば b a
+び b i
+ぶ b u
+べ b e
+ぼ b o
+ぱ p a
+ぴ p i
+ぷ p u
+ぺ p e
+ぽ p o
+ま m a
+み m i
+む m u
+め m e
+も m o
+や y a
+ゆ y u
+よ y o
+ら r a
+り r i
+る r u
+れ r e
+ろ r o
+わ w a
+を o
+ん N
+っ Q
+きゃ k y a
+きゅ k y u
+きょ k y o
+ぎゃ g y a
+ぎゅ g y u
+ぎょ g y o
+しゃ sh y a
+しゅ sh y u
+しょ sh y o
+じゃ j y a
+じゅ j y u
+じょ j y o
+ちゃ ch y a
+ちゅ ch y u
+ちょ ch y o
+にゃ n y a
+にゅ n y u
+にょ n y o
+ひゃ h y a
+ひゅ h y u
+ひょ h y o
+びゃ b y a
+びゅ b y u
+びょ b y o
+ぴゃ p y a
+ぴゅ p y u
+ぴょ p y o
+みゃ m y a
+みゅ m y u
+みょ m y o
+りゃ r y a
+りゅ r y u
+りょ r y o
+a a
+i i
+u u
+e e
+o o
+ka k a
+ki k i
+ku k u
+ke k e
+ko k o
+ga g a
+gi g i
+gu g u
+ge g e
+go g o
+sa s a
+shi sh i
+si sh i
+su s u
+se s e
+so s o
+za z a
+ji j i
+zi j i
+zu z u
+ze z e
+zo z o
+ta t a
+chi ch i
+ti ch i
+tsu ts u
+tu ts u
+te t e
+to t o
+da d a
+di j i
+du z u
+de d e
+do d o
+na n a
+ni n i
+nu n u
+ne n e
+no n o
+ha h a
+hi h i
+fu f u
+hu f u
+he h e
+ho h o
+ba b a
+bi b i
+bu b u
+be b e
+bo b o
+pa p a
+pi p i
+pu p u
+pe p e
+po p o
+ma m a
+mi m i
+mu m u
+me m e
+mo m o
+ya y a
+yu y u
+yo y o
+ra r a
+ri r i
+ru r u
+re r e
+ro r o
+wa w a
+wi i
+we e
+wo o
+n N
+nn N
+vu v u
+kya k y a
+kyu k y u
+kyo k y o
+gya g y a
+gyu g y u
+gyo g y o
+sha sh y a
+sya sh y a
+shu sh y u
+syu sh y u
+sho sh y o
+syo sh y o
+ja j y a
+zya j y a
+ju j y u
+zyu j y u
+jo j y o
+zyo j y o
+cha ch y a
+tya ch y a
+chu ch y u
+tyu ch y u
+cho ch y o
+tyo ch y o
+nya n y a
+nyu n y u
+nyo n y o
+hya h y a
+hyu h y u
+hyo h y o
+bya b y a
+byu b y u
+byo b y o
+pya p y a
+pyu p y u
+pyo p y o
+mya m y a
+myu m y u
+myo m y o
+rya r y a
+ryu r y u
+ryo r y o
