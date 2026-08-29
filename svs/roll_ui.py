@@ -11,6 +11,19 @@ from tkinter import filedialog, messagebox
 import numpy as np
 from . import synth, manifest
 from .plan import plan
+import sys
+
+def _base_path():
+    """Returns the base path: the bundled temp folder if frozen, else the script folder."""
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+def _exec_dir():
+    """Returns the directory containing the executable (for saving settings)."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
 
 ROW_H, KEY_W, MIDI_TOP, MIDI_BOT, SCALE = 14, 64, 96, 36, 0.6
 CCH = 66 + ROW_H
@@ -186,7 +199,7 @@ class Roll2App(tk.Tk):
               ("bri", "BRIGHT", 50, 100), ("ten", "TENSION", 50, 100),
               ("mod", "MOD", 100, 100), ("ope", "OPEN", 50, 100)]
     SET_KEYS = ("gsh", "gen", "pit", "voi", "bre", "bri", "ten")
-    SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "roll_settings.json")
+    SETTINGS_PATH = os.path.join(_exec_dir(), "roll_settings.json")
 
     def __init__(self):
         super().__init__()
