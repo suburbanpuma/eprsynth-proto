@@ -163,10 +163,10 @@ class App(tk.Tk):
     def _tab_db(self):
         f = ttk.Frame(self.nb); self.nb.add(f, text="Database")
         g = ttk.LabelFrame(f, text="New database"); g.grid(row=0, column=0, sticky="ew", padx=8, pady=6)
-        self.e_dbname = ttk.Entry(g, width=24); self.e_dbname.insert(0, "Aurora")
-        self.e_dbdev = ttk.Entry(g, width=24); self.e_dbdev.insert(0, "Studio X")
-        self.e_dbver = ttk.Entry(g, width=8); self.e_dbver.insert(0, "1.0.0")
-        self.e_groups = ttk.Entry(g, width=24); self.e_groups.insert(0, "C2, A3, G4")
+        self.e_dbname = ttk.Entry(g, width=24); self.e_dbname.insert(0, "Database Name")
+        self.e_dbdev = ttk.Entry(g, width=24); self.e_dbdev.insert(0, "Developer Name")
+        self.e_dbver = ttk.Entry(g, width=8); self.e_dbver.insert(0, "001")
+        self.e_groups = ttk.Entry(g, width=24); self.e_groups.insert(0, "E2, C4")
         self.e_styles = ttk.Entry(g, width=24); self.e_styles.insert(0, "base")
         for r, (w, e) in enumerate([("Name", self.e_dbname), ("Developer", self.e_dbdev),
                                     ("Version", self.e_dbver), ("", None),
