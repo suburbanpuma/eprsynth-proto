@@ -13,6 +13,19 @@ import os
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from .g2p import G2pRegistry
+import sys
+
+def _base_path():
+    """Returns the base path: the bundled temp folder if frozen, else the script folder."""
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+def _exec_dir():
+    """Returns the directory containing the executable (for saving settings)."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
 
 class App(tk.Tk):
     def __init__(self):
@@ -22,7 +35,7 @@ class App(tk.Tk):
         self.configure(bg="#2b2b2b")
 
         # Scan for packs
-        g2p_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "g2p")
+        g2p_dir = os.path.join(_base_path(), "g2p")
         os.makedirs(g2p_dir, exist_ok=True)
         self.registry = G2pRegistry([g2p_dir])
         self.packs = self.registry.list()
