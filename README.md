@@ -2,6 +2,8 @@
 
 EpR Synthesizer is a high-fidelity concatenative singing voice synthesis engine featuring a modern, dark-themed piano roll editor. It combines an Envelope-based Pitch-synchronous Resynthesis (EpR) core with Spectral Peak Processing (SPP) for phase-accurate harmonic rendering, and integrates the OpenUtau G2P standard for automatic lyric-to-phoneme conversion.
 
+Full disclosure: this project was coded using Qwen3.7-Plus.
+
 ## Academic Foundations & Technical Overview
 
 The engine is built upon established techniques in audio signal processing and neural sequence modeling:
