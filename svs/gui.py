@@ -1,20 +1,14 @@
 # =============================================================================
 # gui.py — SVS Developer Tool.
 # Tabs:
-# Database     : create/open DBs (pitch groups + vocal styles), manifest view.
-# Import       : wav+labels import, OpenUtau voicebank importer (threaded,
-#                logged): parses character.yaml (name/author/subbanks), pitches
-#                from folder names (suffix fallback), styles = color names,
-#                oto entries routed to styles via the color<->prefix/suffix
-#                association; alias readings ONLY from the global dict.txt
-#                (SYMBOL = P1, P2).
-# Units        : inventory tree + visual unit editor fused:
-#                model-rendered waveform preview, draggable p1/p2/trans/end
-#                markers (Apply timing), Re-model from wav+lab, Space=play.
-# Label writer : load a wav, view waveform, create/drag lab entries
-#                (articulation/sustain), save .lab, model straight into DB.
+#   Database     : create/open DBs (pitch groups + vocal styles), manifest view.
+#   Import       : wav+labels import (threaded, logged).
+#   Units        : inventory tree + visual unit editor fused:
+#                  model-rendered waveform preview, draggable p1/p2/trans/end
+#                  markers (Apply timing), Re-model from wav+lab, Space=play.
+#   Label writer : load a wav, view waveform, create/drag lab entries
+#                  (articulation/sustain), save .lab, model straight into DB.
 # =============================================================================
-import re
 import json
 import os, subprocess, tempfile, threading, traceback
 import tkinter as tk
@@ -30,123 +24,6 @@ from .unit import build_steady, build_unit, save_unit, wave_env
 MARKS = [("start", "START", "black"), ("m_p1", "P1", "blue"), ("m_p2", "P2", "green"),
          ("m_trans", "TRANS", "orange"), ("end", "END", "red")]
 
-# ---------------- OpenUtau import helpers ----------------
-def _load_dict(path):
-    """Our alias dictionary format, one reading per line:
-         SYMBOL = P1, P2, ...
-    commas or spaces separate phonemes; '#' comments and blank lines skipped."""
-    d = {}
-    try:
-        with open(path, encoding="utf-8-sig", errors="replace") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line: continue
-                sym, rhs = line.split("=", 1)
-                sym = sym.strip()
-                toks = [t for t in rhs.replace(",", " ").split() if t]
-                if sym and toks: d[sym] = toks
-    except Exception:
-        pass
-    return d
-
-def _parse_character(path):
-    """Minimal character.yaml: name/author/default_phonemizer/text_file_encoding + subbanks."""
-    info = {"name": None, "author": None, "default_phonemizer": "", "subbanks": [], "encoding": "utf-8-sig"}
-    cur = None
-    try:
-        with open(path, encoding="utf-8-sig", errors="replace") as f:
-            for line in f:
-                s = line.strip()
-                if not s or s.startswith("#"): continue
-                if s.startswith("- "): s = s[2:].strip()
-                if ":" not in s: continue
-                k, v = s.split(":", 1)
-                k = k.strip().lower(); v = v.strip().strip('"\'')
-                if k == "color":
-                    cur = {"color": v}; info["subbanks"].append(cur)
-                elif k in ("prefix", "suffix"):
-                    if cur is None:
-                        cur = {"color": ""}; info["subbanks"].append(cur)
-                    cur[k] = v
-                elif k in ("name", "author", "default_phonemizer"):
-                    info[k] = v
-                elif k == "text_file_encoding":
-                    enc = v.lower().replace("-", "").replace("_", "")
-                    if enc in ("shiftjis", "sjis"):
-                        info["encoding"] = "cp932"      # robust Shift-JIS
-                    elif enc in ("utf8", "utf8sig"):
-                        info["encoding"] = "utf-8-sig"
-                    else:
-                        info["encoding"] = v
-    except Exception:
-        pass
-    return info
-
-def _note_of(s):
-    """Folder/suffix -> note name. Handles 'G3_Soft', 'SF4', etc."""
-    if not s: return None
-    # 1. Try exact or stripped
-    for cand in (s, s[1:], s[2:]):
-        try:
-            synth.note_to_midi(cand); return cand
-        except Exception:
-            continue
-    # 2. Try splitting by common separators (e.g. G3_Soft -> G3)
-    for part in re.split(r'[_\-\s]+', s):
-        try:
-            synth.note_to_midi(part); return part
-        except Exception:
-            continue
-    return None
-
-def _style_of(alias, subbanks):
-    """Alias -> (color, base_alias, suffix): longest matching prefix+suffix wins,
-    so かSF4 reads as soft/か even though it also ends in F4."""
-    best, bestlen = None, -1
-    for sb in subbanks:
-        pre, suf = sb.get("prefix", ""), sb.get("suffix", "")
-        if pre and not alias.startswith(pre): continue
-        if suf and not alias.endswith(suf): continue
-        if len(pre) + len(suf) > bestlen:
-            bestlen, best = len(pre) + len(suf), sb
-    if best is None: return "", alias, ""
-    pre, suf = best.get("prefix", ""), best.get("suffix", "")
-    base = alias[len(pre): len(alias) - len(suf) if suf else len(alias)]
-    return (best.get("color", "") or ""), base, suf
-
-def _vb_meta(path):
-    """Naive key: value parse of character.txt."""
-    info = {}
-    try:
-        with open(path, encoding="utf-8-sig", errors="replace") as f:
-            for line in f:
-                line = line.strip()
-                if ":" in line and not line.startswith(("-", "#")):
-                    k, v = line.split(":", 1)
-                    info[k.strip().lower()] = v.strip()
-    except Exception:
-        pass
-    return info
-
-def _parse_oto(path, encoding="utf-8-sig"):
-    """alias=wav,offset,consonant,cutoff,preutterance,overlap  (ms)"""
-    entries = []
-    try:
-        with open(path, encoding=encoding, errors="replace") as f:
-            for line in f:
-                line = line.strip()
-                if not line or "=" not in line: continue
-                alias, rest = line.split("=", 1)
-                parts = [p.strip() for p in rest.split(",")]
-                def num(i):
-                    try: return float(parts[i])
-                    except Exception: return 0.
-                entries.append(dict(alias=alias.strip(), wav=parts[0],
-                                    offset=num(1), consonant=num(2), cutoff=num(3),
-                                    pre=num(4), overlap=num(5)))
-    except Exception:
-        pass
-    return entries
 
 class App(tk.Tk):
     def __init__(self):
@@ -154,7 +31,6 @@ class App(tk.Tk):
         self.title("SVS Developer Tool")
         self.geometry("1080x720")
         self.db = self.info = None
-        self._dict_path = None
         self.nb = ttk.Notebook(self); self.nb.pack(fill="both", expand=True)
         self._tab_db(); self._tab_import(); self._tab_units(); self._tab_lab()
         self.bind("<space>", lambda e: self.play_unit())
@@ -163,10 +39,10 @@ class App(tk.Tk):
     def _tab_db(self):
         f = ttk.Frame(self.nb); self.nb.add(f, text="Database")
         g = ttk.LabelFrame(f, text="New database"); g.grid(row=0, column=0, sticky="ew", padx=8, pady=6)
-        self.e_dbname = ttk.Entry(g, width=24); self.e_dbname.insert(0, "Database Name")
-        self.e_dbdev = ttk.Entry(g, width=24); self.e_dbdev.insert(0, "Developer Name")
-        self.e_dbver = ttk.Entry(g, width=8); self.e_dbver.insert(0, "001")
-        self.e_groups = ttk.Entry(g, width=24); self.e_groups.insert(0, "E2, C4")
+        self.e_dbname = ttk.Entry(g, width=24); self.e_dbname.insert(0, "Aurora")
+        self.e_dbdev = ttk.Entry(g, width=24); self.e_dbdev.insert(0, "Studio X")
+        self.e_dbver = ttk.Entry(g, width=8); self.e_dbver.insert(0, "1.0.0")
+        self.e_groups = ttk.Entry(g, width=24); self.e_groups.insert(0, "C2, A3, G4")
         self.e_styles = ttk.Entry(g, width=24); self.e_styles.insert(0, "base")
         for r, (w, e) in enumerate([("Name", self.e_dbname), ("Developer", self.e_dbdev),
                                     ("Version", self.e_dbver), ("", None),
@@ -179,9 +55,9 @@ class App(tk.Tk):
         ttk.Label(g, text="Language").grid(row=3, column=0, sticky="w", padx=4)
         self.cb_lang = ttk.Combobox(g, values=langcfg.list_templates(), width=8, state="readonly")
         self.cb_lang.set("ja"); self.cb_lang.grid(row=3, column=1, sticky="w", padx=4)
-        ttk.Button(g, text="Create ...", command=self.create_db).grid(row=7, column=1,
-                                                                       sticky="w", padx=4, pady=4)
-        ttk.Button(f, text="Open DB ...", command=self.open_db).grid(row=1, column=0, sticky="w", padx=8)
+        ttk.Button(g, text="Create...", command=self.create_db).grid(row=7, column=1,
+                                                                     sticky="w", padx=4, pady=4)
+        ttk.Button(f, text="Open DB...", command=self.open_db).grid(row=1, column=0, sticky="w", padx=8)
         self.t_man = tk.Text(f, height=10)
         self.t_man.grid(row=2, column=0, sticky="nsew", padx=8, pady=6)
         f.rowconfigure(2, weight=1); f.columnconfigure(0, weight=1)
@@ -199,7 +75,7 @@ class App(tk.Tk):
                            self.e_dbver.get(), self.cb_lang.get(), groups)
         except Exception as e:
             messagebox.showerror("DB", str(e)); return
-        for st in styles[1:]:                                 # same layout as importer
+        for st in styles[1:]:                                 # extra styles share layout
             for g in groups:
                 d = os.path.join(path, st, g)
                 os.makedirs(d, exist_ok=True)
@@ -214,23 +90,19 @@ class App(tk.Tk):
         mp = os.path.join(path, "manifest.ini")
         cp = configparser.ConfigParser()
         cp.read(mp, encoding="utf-8")
-        
         if not cp.has_section("singer"):
             cp.add_section("singer")
         cp.set("singer", "styles", ",".join(styles))
-        
         # Clear ALL pitchgroups to prevent duplicates and ensure clean state
         for sec in list(cp.sections()):
             if sec.startswith("pitchgroups."):
                 cp.remove_section(sec)
-                
         # Add pitchgroups for ALL styles (including base)
         for st in styles:
             sec = f"pitchgroups.{st}"
             if not cp.has_section(sec):
                 cp.add_section(sec)
             cp.set(sec, "groups", ", ".join(groups))
-            
         with open(mp, "w", encoding="utf-8") as f:
             cp.write(f)
 
@@ -254,11 +126,10 @@ class App(tk.Tk):
         ttk.Label(r, text="Group").pack(side="left")
         self.cb_group = ttk.Combobox(r, width=8, state="readonly"); self.cb_group.pack(side="left", padx=4)
         self.e_wav = ttk.Entry(r, width=38); self.e_wav.pack(side="left", padx=4)
-        ttk.Button(r, text="wav ...", command=lambda: self._browse(self.e_wav, True)).pack(side="left")
+        ttk.Button(r, text="wav...", command=lambda: self._browse(self.e_wav, True)).pack(side="left")
         self.e_lab = ttk.Entry(r, width=28); self.e_lab.pack(side="left", padx=4)
-        ttk.Button(r, text="labels ...", command=lambda: self._browse(self.e_lab, False)).pack(side="left")
+        ttk.Button(r, text="labels...", command=lambda: self._browse(self.e_lab, False)).pack(side="left")
         ttk.Button(r, text="Import", command=self.do_import).pack(side="left", padx=8)
-        ttk.Button(r, text="OpenUtau ...", command=self.import_openutau).pack(side="left", padx=4)
         self.pb = ttk.Progressbar(f, mode="indeterminate"); self.pb.pack(fill="x", padx=8)
         self.t_log = tk.Text(f, height=22); self.t_log.pack(fill="both", expand=True, padx=8, pady=6)
 
@@ -286,203 +157,6 @@ class App(tk.Tk):
             finally:
                 self.after(0, self.pb.stop)
         threading.Thread(target=work, daemon=True).start()
-
-    def do_batch(self):
-        if not self.db: messagebox.showerror("Import", "open a database first"); return
-        grp = self.cb_group.get()
-        if not grp: messagebox.showerror("Import", "group required"); return
-        p = filedialog.askopenfilename(
-            filetypes=[("batchlab", "*.batchlab *.lab *.txt"), ("all", "*.*")])
-        if not p: return
-        self.pb.start()
-        def work():
-            try:
-                core.import_batchlab(self.db, grp, p, log=self._log)
-                self._log("batchlab import finished.")
-                self.after(0, self.reload_units)
-            except Exception:
-                self._log(traceback.format_exc())
-            finally:
-                self.after(0, self.pb.stop)
-        threading.Thread(target=work, daemon=True).start()
-
-    # ---------------- OpenUtau voicebank importer ----------------
-    def _global_dict(self):
-        """dict.txt is GLOBAL: one dictionary parses every oto.ini in every
-        subfolder of any imported voicebank. Resolution order: remembered
-        path -> dict.txt next to this tool -> ask once."""
-        p = getattr(self, "_dict_path", None)
-        if p and os.path.exists(p): return _load_dict(p)
-        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dict.txt")
-        if os.path.exists(here):
-            self._dict_path = here
-            return _load_dict(here)
-        sel = filedialog.askopenfilename(
-            title="global alias dictionary (SYMBOL = P1, P2)",
-            filetypes=[("dictionary", "*.txt *.dict"), ("all", "*.*")])
-        if sel:
-            self._dict_path = sel
-            return _load_dict(sel)
-        return {}
-
-    def import_openutau(self):
-        vb = filedialog.askdirectory(title="OpenUtau voicebank folder")
-        if not vb: return
-        info, subbanks = {}, []
-        enc = "utf-8-sig"
-        yp = os.path.join(vb, "character.yaml")
-        if not os.path.exists(yp): yp = os.path.join(vb, "character.yml")
-        if os.path.exists(yp):
-            info = _parse_character(yp)
-            subbanks = info.get("subbanks", [])
-            enc = info.get("encoding", "utf-8-sig")     # read Shift-JIS/UTF-8
-        else:
-            ct = os.path.join(vb, "character.txt")
-            if os.path.exists(ct): info = _vb_meta(ct)
-            
-        name = info.get("name") or os.path.basename(vb)
-        author = info.get("author") or "openutau-import"
-        phz = (info.get("default_phonemizer") or "").lower()
-        lang_code = "en" if ("english" in phz or "arpa" in phz) else "ja"
-        
-        otos = []
-        for root, _d, files in os.walk(vb):
-            if "oto.ini" in files:
-                rel = os.path.relpath(root, vb).replace("\\", "/")
-                otos.append(("" if rel == "." else rel, os.path.join(root, "oto.ini")))
-                
-        colors = []
-        for sb in subbanks:
-            c = sb.get("color", "") or ""
-            if c not in colors: colors.append(c)
-            
-        groups = []
-        for rel, _p in otos:
-            parts = [x for x in rel.split("/") if x]
-            fn = parts[-1] if parts else ""
-            if fn and fn not in colors:
-                nn = _note_of(fn)
-                if nn and nn not in groups: groups.append(nn)
-        if not groups:
-            for sb in subbanks:
-                nn = _note_of(sb.get("suffix", ""))
-                if nn and nn not in groups: groups.append(nn)
-        if not groups: groups = ["C4"]
-        groups.sort(key=synth.note_to_midi)
-        
-        dest = filedialog.askdirectory(title="Destination DB folder (new/empty)")
-        if not dest: return
-        try:
-            core.create_db(dest, name, author, "1.0.0", lang_code, groups)
-        except Exception as e:
-            messagebox.showerror("OpenUtau", str(e)); return
-            
-        for c in colors[1:]:
-            for g in groups:
-                d = os.path.join(dest, c, g)
-                os.makedirs(d, exist_ok=True)
-                with open(os.path.join(d, "index.json"), "w") as f:
-                    json.dump({"units": {}, "steady": {}}, f)
-                    
-        # Robust manifest update (replaces existing styles line, no duplicates)
-        self._write_manifest_styles(dest, ["base"] + colors[1:], groups)
-        
-        self.pb.start()
-        def work():
-            try:
-                self._openutau_work(vb, dest, otos, groups, lang_code, subbanks, colors, enc)
-                self._log("openutau import finished.")
-            except Exception:
-                self._log(traceback.format_exc())
-            finally:
-                self.after(0, self.pb.stop)
-                self.after(0, lambda: self._set_db(dest))
-        threading.Thread(target=work, daemon=True).start()
-
-    def _openutau_work(self, vb, dest, otos, groups, lang_code, subbanks, colors, enc="utf-8-sig"):
-        cfg = AnalysisConfig()
-        lang = langcfg.load_lang(langcfg.template_path(lang_code))
-        dic = self._global_dict()
-        phset = set(lang.phonemes())
-        cache = {}
-        idx = {}
-        for rel, oto_p in otos:
-            parts = [x for x in rel.split("/") if x]
-            fstyle = parts[0] if len(parts) > 1 and parts[0] in colors else ""
-            folder = os.path.dirname(oto_p)
-            fnote = _note_of(parts[-1]) if parts else None
-            for e in _parse_oto(oto_p, encoding=enc):
-                alias = e["alias"]
-                # UTAU defaults alias to filename (including .wav) if left blank
-                if alias.lower().endswith(".wav"):
-                    alias = alias[:-4]
-                    
-                color, base, suf = _style_of(alias, subbanks)
-                if fstyle: color = fstyle          # style-from-folder layout wins
-                g = fnote or _note_of(suf)
-                if g is None or g not in groups:
-                    self._log(f"  [{rel or 'root'}] no pitch for: {e['alias']}"); continue
-                sdir = "base" if not color else color
-                
-                # Split base by spaces and map each token via dictionary/phoneme set
-                raw_toks = base.split()
-                toks = []
-                unmapped = False
-                for rt in raw_toks:
-                    if rt in phset:
-                        toks.append(rt)
-                    elif rt in dic:
-                        toks.extend(dic[rt])
-                    elif rt in ("-", "R", "r", "pau", "sil", "breath", "br"):
-                        if "pau" in phset: toks.append("pau")
-                        elif "sil" in phset: toks.append("sil")
-                        # else ignore the silent/breath token if not in phoneme set
-                    else:
-                        unmapped = True
-                        break
-                        
-                if unmapped or not toks:
-                    self._log(f"  [{sdir}/{g}] unmapped alias: {e['alias']}"); continue
-                    
-                # Ignore VCV (vowel-consonant-vowel) and overly complex aliases
-                if len(toks) > 2:
-                    self._log(f"  [{sdir}/{g}] ignoring VCV/complex: {e['alias']} -> {toks}"); continue
-                    
-                if not all(t in phset for t in toks):
-                    self._log(f"  [{sdir}/{g}] unmapped phoneme in: {e['alias']}"); continue
-
-                try:
-                    if len(toks) == 1 and lang.steady(toks[0]):
-                        # sustain: loop = offset..offset+300 (refine in unit editor)
-                        lb = Label(toks[0], None, 0., off, None, min(off + 300., end), end)
-                        arrays, meta = build_steady(fr_, lb.sec(), cfg, sr)
-                        relf = f"~{toks[0]}.npz"; slot_key = "steady"; key = toks[0]
-                    elif len(toks) == 2:
-                        p1, p2 = toks[0], toks[1]
-                        mp1 = max(0., off - con) if con > 0. else 0.
-                        lb = Label(p1, p2, 0., mp1, off,
-                                   min(off + max(120., e["overlap"]), end), end)
-                        arrays, meta = build_unit(fr_, lb.sec(), cfg, sr)
-                        relf = f"{p1} {p2}.npz"; slot_key = "units"; key = f"{p1} {p2}"
-                    else:
-                        self._log(f"  [{sdir}/{g}] skipped alias: {e['alias']}"); continue
-                        
-                    # ... (rest of the try block remains exactly the same) ...
-                    meta["markers"] = {k: v * 1000. for k, v in meta["markers"].items()}
-                    os.makedirs(os.path.join(dest, sdir, g), exist_ok=True)
-                    save_unit(os.path.join(dest, sdir, g, relf), arrays)
-                    meta["file"] = relf
-                    slot = idx.setdefault((sdir, g), {"units": {}, "steady": {}})
-                    slot[slot_key][key] = meta
-                except Exception:
-                    self._log(f"  [{sdir}/{g}] failed: {e['alias']}\n" + traceback.format_exc())
-        for (sdir, g), slot in idx.items():
-            ip = os.path.join(dest, sdir, g, "index.json")
-            with open(ip) as f: ix = json.load(f)
-            ix["units"].update(slot["units"]); ix["steady"].update(slot["steady"])
-            with open(ip, "w") as f: json.dump(ix, f, indent=1)
-            self._log(f"  [{sdir}/{g}] {len(slot['units'])} diphones, "
-                      f"{len(slot['steady'])} sustains")
 
     # ================= Units (inventory + visual editor) =================
     UMARKS = [("p1", "blue"), ("p2", "green"), ("trans", "orange"), ("end", "red")]
@@ -512,7 +186,7 @@ class App(tk.Tk):
         self.l_uread = ttk.Label(right, text=""); self.l_uread.pack(anchor="w")
         bb = ttk.Frame(right); bb.pack(fill="x", pady=4)
         ttk.Button(bb, text="Apply timing", command=self.apply_timing).pack(side="left")
-        ttk.Button(bb, text="Re-model from wav+lab ...", command=self.remodel).pack(side="left", padx=6)
+        ttk.Button(bb, text="Re-model from wav+lab...", command=self.remodel).pack(side="left", padx=6)
         self.l_ust = ttk.Label(bb, text=""); self.l_ust.pack(side="left", padx=8)
         self._units = []; self._usel = None
         self._uwave = None; self._umk = None; self._ums = 1.; self._udrag = None
@@ -527,7 +201,7 @@ class App(tk.Tk):
         for pair, m in sorted(idx["units"].items()):
             self._units.append(("diph", pair, m))
             self.tree.insert("", "end", values=(pair, f"{m['rec_pitch']:.1f}",
-                                                [round(v) for v in m["formants"]]))
+                                                 [round(v) for v in m["formants"]]))
         for ph, m in sorted(idx.get("steady", {}).items()):
             mk = m.get("markers", {})
             self._units.append(("sus", ph, m))
@@ -702,7 +376,7 @@ class App(tk.Tk):
         f = ttk.Frame(self.nb); self.nb.add(f, text="Label writer")
         r0 = ttk.Frame(f); r0.pack(fill="x", padx=8, pady=4)
         self.e_lwav = ttk.Entry(r0, width=36); self.e_lwav.pack(side="left")
-        ttk.Button(r0, text="wav ...", command=self.l_load_wav).pack(side="left", padx=4)
+        ttk.Button(r0, text="wav...", command=self.l_load_wav).pack(side="left", padx=4)
         ttk.Label(r0, text="group").pack(side="left", padx=(8, 0))
         self.cb_lgroup = ttk.Combobox(r0, width=8, state="readonly"); self.cb_lgroup.pack(side="left")
         ttk.Label(r0, text="view ms").pack(side="left", padx=(8, 0))
@@ -892,6 +566,7 @@ class App(tk.Tk):
                 self.after(0, lambda: (self.l_lst.configure(text="error"),
                                        messagebox.showerror("Model", traceback.format_exc())))
         threading.Thread(target=work, daemon=True).start()
+
 
 def main():
     App().mainloop()
