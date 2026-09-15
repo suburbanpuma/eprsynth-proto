@@ -2,7 +2,10 @@
 # roll_ui.py — the piano-roll editor (dark/orange, flat chrome).
 # Includes: SETTINGS pane, lyrics -> g2p -> phonemes with a manual-phoneme
 # lock, double-click inline editors (phonemes above note, lyrics on note),
-# scrub erase, portamento faders, vibrato, curve lanes, thin scroll rails.
+# scrub erase, portamento faders, vibrato, curve lanes, thin scroll rails,
+# Simple Timing Mode (optimized vertical-line waveform + white phoneme overlays),
+# shadow styling for sil/gs/cl, direct phoneme input (.prefix), and immediate
+# auto-rendering on sequence changes.
 # =============================================================================
 import json, re
 import os, subprocess, tempfile, threading, time
@@ -11,19 +14,6 @@ from tkinter import filedialog, messagebox
 import numpy as np
 from . import synth, manifest
 from .plan import plan
-import sys
-
-def _base_path():
-    """Returns the base path: the bundled temp folder if frozen, else the script folder."""
-    if getattr(sys, 'frozen', False):
-        return sys._MEIPASS
-    return os.path.dirname(os.path.abspath(__file__))
-
-def _exec_dir():
-    """Returns the directory containing the executable (for saving settings)."""
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
 
 ROW_H, KEY_W, MIDI_TOP, MIDI_BOT, SCALE = 14, 64, 96, 36, 0.6
 CCH = 66 + ROW_H
@@ -199,7 +189,7 @@ class Roll2App(tk.Tk):
               ("bri", "BRIGHT", 50, 100), ("ten", "TENSION", 50, 100),
               ("mod", "MOD", 100, 100), ("ope", "OPEN", 50, 100)]
     SET_KEYS = ("gsh", "gen", "pit", "voi", "bre", "bri", "ten")
-    SETTINGS_PATH = os.path.join(_exec_dir(), "roll_settings.json")
+    SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "roll_settings.json")
 
     def __init__(self):
         super().__init__()
@@ -214,6 +204,7 @@ class Roll2App(tk.Tk):
         self.playing = False
         self.play_ms = 0.
         self.dirty = True
+        self.y_start_ms = 0.0
         self.tool = tk.StringVar(value="select")
         self.show_pitch = tk.BooleanVar(value=True)
         self.curve_open = False
@@ -291,6 +282,15 @@ class Roll2App(tk.Tk):
             b.bind("<Enter>", lambda e, b=b: b.configure(fg=ACC))
             b.bind("<Leave>", lambda e, b=b: b.configure(fg=DIM))
             b.pack(side="left", padx=8)
+        
+        # ---- Simple Timing Mode toggle (default ON) ----
+        self.simple_timing = True
+        self.b_timing = tk.Label(m2, text="SIMPLE TIMING", bg="#3a3a3a", fg=ACC, font=F_BOLD, cursor="hand2")
+        self.b_timing.bind("<Button-1>", lambda e: self.toggle_timing())
+        self.b_timing.bind("<Enter>", lambda e, b=self.b_timing: b.configure(fg=ACC))
+        self.b_timing.bind("<Leave>", lambda e, b=self.b_timing: b.configure(fg=ACC if self.simple_timing else DIM))
+        self.b_timing.pack(side="left", padx=8)
+        
         for t, txt in (("select", "SELECT"), ("draw", "DRAW"), ("erase", "ERASE")):
             b = tk.Label(m2, text=txt, bg=FG, fg="#111111", font=F_BOLD, cursor="hand2", padx=10, pady=6)
             b.bind("<Button-1>", lambda e, t=t: self.set_tool(t))
@@ -449,6 +449,13 @@ class Roll2App(tk.Tk):
         else: self.cb_frame.pack_forget()
         self.draw_all()
 
+    def toggle_timing(self):
+        self.simple_timing = not self.simple_timing
+        self.b_timing.configure(text="SIMPLE TIMING" if self.simple_timing else "ADVANCED TIMING",
+                                fg=ACC if self.simple_timing else DIM,
+                                bg="#3a3a3a" if self.simple_timing else BAR2)
+        self.draw_strip()
+
     def _sync_lane(self):
         if self.curve_param == "note" or not self.curve_open: self.ccv.pack_forget()
         else: self.ccv.pack(fill="x")
@@ -551,6 +558,7 @@ class Roll2App(tk.Tk):
             self._undo.append(pre)
             if len(self._undo) > 50: self._undo.pop(0)
             self._redo.clear()
+            self.render()  # Immediate rerender on gesture end
 
     def _restore(self, st):
         self._restoring = True
@@ -580,10 +588,12 @@ class Roll2App(tk.Tk):
     def undo(self):
         if not self._undo: return
         self._redo.append(self._state()); self._restore(self._undo.pop())
+        self.render()
 
     def redo(self):
         if not self._redo: return
         self._undo.append(self._state()); self._restore(self._redo.pop())
+        self.render()
 
     def new_seq(self):
         self.begin_gesture(); self.stop_ph_edit(apply=False)
@@ -870,6 +880,7 @@ class Roll2App(tk.Tk):
                 if toks != list(n.phonemes):
                     self._set_phonemes(n, toks); n.locked = True; paint_lock()
                     self.update_light(); self.draw_all()
+                    self.render()  # Immediate rerender
         def commit_ly(e=None):
             try: txt = e_ly.get().strip()
             except Exception: return
@@ -882,6 +893,7 @@ class Roll2App(tk.Tk):
             eng = pack.to_engine(phs) or phs
             if not self.db or not [t for t in eng if t not in self.db.lang.phonemes()]:
                 self._set_phonemes(n, eng); self.update_light(); self.draw_all()
+                self.render()  # Immediate rerender
         e_ph.bind("<Return>", commit_ph); e_ly.bind("<Return>", commit_ly)
         w.protocol("WM_DELETE_WINDOW", lambda: (commit_ly(), commit_ph(), w.destroy()))
         def on_destroy(e):
@@ -923,9 +935,11 @@ class Roll2App(tk.Tk):
             self._pt_trans.append((c - d / 2., c + d / 2., float(a.midi), float(b2.midi), b2.pt_depl))
             c = a.end + a.pt_or; d = max(20., a.pt_dr)
             self._pt_trans.append((c - d / 2., c + d / 2., float(a.midi), float(b2.midi), a.pt_depr))
-        for n in sorted(self.notes, key=lambda n: n.start): self.draw_note_rect(n)
+        for n in sorted(self.notes, key=lambda n: n.start):
+            self.draw_note_rect(n)
         self.draw_curves()
-        for n in sorted(self.notes, key=lambda n: n.start): self.draw_note_text(n)
+        for n in sorted(self.notes, key=lambda n: n.start):
+            self.draw_note_text(n)
         self.draw_strip(); self.draw_curve_lane()
         tot = max([n.start + n.dur for n in self.notes], default=0.) / 1000.
         mm, ss, cc = int(tot // 60), int(tot % 60), int(tot * 100 % 100)
@@ -944,23 +958,54 @@ class Roll2App(tk.Tk):
     def draw_note_rect(self, n):
         x0, x1 = self.x_of(n.start), self.x_of(n.start + n.dur)
         y = self.y_of(n.midi); s = n is self.sel
-        self.cv.create_rectangle(x0, y + 1, x1, y + ROW_H - 1, fill=ACC_HI if s else ACC, outline="#ffffff" if s else "")
+        
+        # Shadow style for specific single-phoneme notes
+        is_shadow = (len(n.phonemes) == 1 and n.phonemes[0] in ("sil", "gs", "cl"))
+        
+        if is_shadow:
+            self.cv.create_rectangle(x0, y + 1, x1, y + ROW_H - 1,
+                                     fill="", outline="#444444",
+                                     dash=(3, 3), width=1)
+        else:
+            self.cv.create_rectangle(x0, y + 1, x1, y + ROW_H - 1,
+                                     fill=ACC_HI if s else ACC,
+                                     outline="#ffffff" if s else "")
 
     def draw_note_text(self, n):
         x0 = self.x_of(n.start); y = self.y_of(n.midi)
-        # Top line: phonemes (always show, spaced)
-        self.cv.create_text(x0 + 4, y - 4, text=" ".join(n.phonemes), anchor="w", fill=ACC, font=F_SMALL)
-        # Main label: lyric if available, else phonemes spaced
-        label = n.lyric if n.lyric else " ".join(n.phonemes)
-        self.cv.create_text(x0 + 4, y + ROW_H / 2, text=label, anchor="w", fill="#111111", font=F_BOLD)
+        
+        is_shadow = (len(n.phonemes) == 1 and n.phonemes[0] in ("sil", "gs", "cl"))
+        
+        # Top line: phonemes
+        top_fill = "#555555" if is_shadow else ACC
+        self.cv.create_text(x0 + 4, y - 4, text=" ".join(n.phonemes), anchor="w", fill=top_fill, font=F_SMALL)
+        
+        # Main label
+        if is_shadow:
+            label = n.phonemes[0]  # Show the phoneme name (e.g., "sil")
+            fill = "#555555"
+        else:
+            label = n.lyric if n.lyric else " ".join(n.phonemes)
+            fill = "#111111"
+            
+        self.cv.create_text(x0 + 4, y + ROW_H / 2, text=label, anchor="w", fill=fill, font=F_BOLD)
 
     def _is_vowel(self, ph):
+        """Check if phoneme is a vowel using lang.ini type definitions."""
         if ph in ("a", "i", "u", "e", "o"): return True
         try: return self.db is not None and self.db.lang.type(ph) == "vowel"
         except Exception: return False
 
     def draw_strip(self):
-        cv = self.sv; cv.delete("all"); self._edges = []
+        cv = self.sv; cv.delete("all")
+        self._edges = []
+        W = self.x_of(60000.)
+
+        if self.simple_timing:
+            self._draw_simple_timing(cv, W)
+            return
+
+        # ---- Standard two-row strip ----
         cv.create_rectangle(0, 0, KEY_W, 33, fill=LABBG, outline="")
         cv.create_text(KEY_W / 2, 16, text="PHONEMES", fill=LABFG, font=F_SMALL)
         cv.create_rectangle(0, 33, KEY_W, 66, fill=LABBG, outline="")
@@ -971,7 +1016,8 @@ class Roll2App(tk.Tk):
                 src, tgt = r["pair"].split()
                 pm = min(max(r.get("p2", 0.), 0.), r["e"] - r["s"])
                 subs.append((src, r["s"], r["s"] + pm)); subs.append((tgt, r["s"] + pm, r["e"]))
-            else: subs.append((r["pair"], r["s"], r["e"]))
+            else:
+                subs.append((r["pair"], r["s"], r["e"]))
         merged = []
         for lab, s, e in subs:
             if e - s <= 0: continue
@@ -980,29 +1026,119 @@ class Roll2App(tk.Tk):
         for lab, s, e in merged:
             x0, x1 = self.x_of(s), self.x_of(e)
             vow = self._is_vowel(lab)
-            cv.create_rectangle(x0, 2, x1, 31, fill=ACC if vow else "#202020", outline="#3a3a3a")
-            if x1 - x0 > 14: cv.create_text((x0 + x1) / 2, 16, text=lab, fill="#111111" if vow else ACC, font=F_BOLD)
+            cv.create_rectangle(x0, 2, x1, 31, fill=ACC if vow else "#202020",
+                                outline="#3a3a3a")
+            if x1 - x0 > 14:
+                cv.create_text((x0 + x1) / 2, 16, text=lab,
+                               fill="#111111" if vow else ACC, font=F_BOLD)
         if self.sel is not None:
-            cv.create_rectangle(self.x_of(self.sel.start), 1, self.x_of(self.sel.start + self.sel.dur), 32, outline=ACC, width=2)
+            cv.create_rectangle(self.x_of(self.sel.start), 1,
+                                self.x_of(self.sel.start + self.sel.dur), 32,
+                                outline=ACC, width=2)
         for r in (self._rows or []):
             x0, x1 = self.x_of(r["s"]), self.x_of(r["e"])
             if " " not in r["pair"]:
                 cv.create_rectangle(x0, 36, x1, 63, fill="#262626", outline="#3a3a3a")
-                if x1 - x0 > 30: cv.create_text((x0 + x1) / 2, 49, text=f"{r['pair']} {r['e'] - r['s']:.0f}", fill="#e0e0e0", font=F_SMALL)
+                if x1 - x0 > 30:
+                    cv.create_text((x0 + x1) / 2, 49,
+                                   text=f"{r['pair']} {r['e'] - r['s']:.0f}",
+                                   fill="#e0e0e0", font=F_SMALL)
             else:
                 src, tgt = r["pair"].split()
                 pm = min(max(r.get("p2", 0.), 0.), r["e"] - r["s"])
                 xm = self.x_of(r["s"] + pm)
                 cv.create_rectangle(x0, 36, xm, 63, fill="#262626", outline=ACC)
                 cv.create_rectangle(xm, 36, x1, 63, fill="#262626", outline=ACC)
-                if xm - x0 > 24: cv.create_text((x0 + xm) / 2, 49, text=src, fill=ACC, font=F_SMALL)
-                if x1 - xm > 24: cv.create_text((xm + x1) / 2, 49, text=tgt, fill=ACC, font=F_SMALL)
+                if xm - x0 > 24: cv.create_text((x0 + xm) / 2, 49, text=src,
+                                                fill=ACC, font=F_SMALL)
+                if x1 - xm > 24: cv.create_text((xm + x1) / 2, 49, text=tgt,
+                                                fill=ACC, font=F_SMALL)
                 cv.create_line(xm, 36, xm, 63, fill=ACC)
                 self._edges.append((r["s"] + pm, ("p2", r["ni"], r["rk"], r["s"], r["e"])))
             if r.get("lkey"): self._edges.append((r["s"], r["lkey"]))
-            if r.get("lkey") and r["lkey"][0] in ("onset", "chain"): cv.create_line(x0, 38, x0, 60, fill="white")
-            if r.get("rk") == "c0" and r.get("ni") == 0: self._edges.append((r["s"], ("pre", 0)))
-            if r.get("resizable"): self._edges.append((r["e"], ("end", r["ni"], r["rk"], r["s"], r["e"])))
+            if r.get("lkey") and r["lkey"][0] in ("onset", "chain"):
+                cv.create_line(x0, 38, x0, 60, fill="white")
+            if r.get("rk") == "c0" and r.get("ni") == 0:
+                self._edges.append((r["s"], ("pre", 0)))
+            if r.get("resizable"):
+                self._edges.append((r["e"], ("end", r["ni"], r["rk"], r["s"], r["e"])))
+
+    def _draw_simple_timing(self, cv, W):
+        """Simple Timing Mode: Aligned waveform (optimized), white text, grabbable white bars."""
+        h = 66
+        
+        # 1. Build phoneme timeline (merged)
+        subs = []
+        for r in (self._rows or []):
+            if " " in r["pair"]:
+                src, tgt = r["pair"].split()
+                pm = min(max(r.get("p2", 0.), 0.), r["e"] - r["s"])
+                subs.append((src, r["s"], r["s"] + pm))
+                subs.append((tgt, r["s"] + pm, r["e"]))
+            else:
+                subs.append((r["pair"], r["s"], r["e"]))
+        
+        merged = []
+        for lab, s, e in subs:
+            if e - s <= 0: continue
+            if merged and merged[-1][0] == lab:
+                merged[-1][2] = e
+            else:
+                merged.append([lab, s, e])
+        
+        # 2. Draw Waveform (OPTIMIZED: 1 line per 2 pixels instead of per sample)
+        if self.y is not None and len(self.y):
+            y = self.y
+            sr = self.db.cfg.sample_rate if self.db else 44100
+            total_ms = len(y) / sr * 1000.
+            threshold = 0.02 * np.abs(y).max()
+            amp_scale = (h - 4) / max(1e-9, np.abs(y).max())
+            
+            start_ms = self._rows[0]["s"] if self._rows else 0.0
+            
+            # Draw 1 vertical line per 2 pixels to prevent Tkinter canvas lag
+            max_px = int(total_ms * SCALE)
+            step = 2
+            for px in range(0, max_px, step):
+                timeline_ms = px / SCALE
+                buffer_ms = timeline_ms - start_ms
+                if buffer_ms < 0: continue
+                
+                i0 = int(buffer_ms / 1000. * sr)
+                i1 = int((buffer_ms + step / SCALE) / 1000. * sr)
+                i1 = max(i0 + 1, min(len(y), i1))
+                
+                v = np.abs(y[i0:i1]).max()
+                if v > threshold:
+                    v_px = v * amp_scale
+                    x = KEY_W + px
+                    cv.create_line(x, h/2 - v_px/2, x, h/2 + v_px/2, fill=ACC, width=1)
+                    
+        # 3. Register draggable edges (same as standard strip)
+        self._edges = []
+        for r in (self._rows or []):
+            if r.get("lkey"): self._edges.append((r["s"], r["lkey"]))
+            if " " in r["pair"]:
+                pm = min(max(r.get("p2", 0.), 0.), r["e"] - r["s"])
+                self._edges.append((r["s"] + pm, ("p2", r["ni"], r["rk"], r["s"], r["e"])))
+            if r.get("resizable"):
+                self._edges.append((r["e"], ("end", r["ni"], r["rk"], r["s"], r["e"])))
+                
+        # 4. Draw Phoneme Labels and White Bars
+        for block in merged:
+            lab, s, e = block
+            x0, x1 = self.x_of(s), self.x_of(e)
+            if x1 - x0 <= 0: continue
+            
+            cv.create_line(x0, 0, x0, h, fill="white", width=2)
+            
+            if x1 - x0 > 10:
+                txt = lab if len(lab) * 7 < (x1 - x0) else lab[:max(1, int((x1 - x0) / 7))]
+                cv.create_text((x0 + x1) / 2, h / 2, text=txt, fill="white", font=F_BOLD)
+                
+        if merged:
+            last_x = self.x_of(merged[-1][2])
+            cv.create_line(last_x, 0, last_x, h, fill="white", width=2)
 
     def draw_curves(self):
         if not self.show_pitch.get(): return
@@ -1181,37 +1317,50 @@ class Roll2App(tk.Tk):
                     if toks != list(n.phonemes):
                         self._set_phonemes(n, toks); n.locked = True; self.dirty = True
             else:
+                # Check for direct phoneme input (e.g., ".sil" -> ["sil"])
+                is_direct = txt.startswith('.')
+                if is_direct:
+                    txt = txt[1:]  # Strip the dot
+                
                 n.lyric = txt
-                self.dirty = True                  # canvas must redraw to show the new lyric
-                if toks and not getattr(n, "locked", False):
+                self.dirty = True
+                
+                if is_direct:
+                    raw_phonemes = txt.split()
+                    if raw_phonemes:
+                        # Validate against lang.ini
+                        if not self.db or not [t for t in raw_phonemes if t not in self.db.lang.phonemes()]:
+                            self._set_phonemes(n, raw_phonemes)
+                            self.draw_all()
+                            self.render()
+                            return  # Skip G2P
+                
+                # Standard G2P workflow
+                if txt and not getattr(n, "locked", False):
                     out = []; pack = self._g2p_pack()
                     if pack is None: print("[lyrics] no g2p pack found in svs/g2p/")
                     else:
-                        for w in toks:
+                        for w in txt.split():
                             ps = pack.word(w)
                             if ps: out.extend(pack.to_engine(ps) or ps)
                             else: print(f"[lyrics] no reading for {w!r} (pack {pack.id})")
                     if out and self.db:
-                        missing = [t for t in out if t not in self.db.lang.phonemes()]
-                        if missing:
-                            print(f"[lyrics] rejected {txt!r}: generated {' '.join(out)}, missing from lang.ini: {' '.join(missing)}")
-                        else:
-                            self._set_phonemes(n, out); self.dirty = True
-                            print(f"[lyrics] {txt!r} -> {' '.join(out)}")
-                    elif out and not self.db:
-                        self._set_phonemes(n, out); self.dirty = True
-                        print(f"[lyrics] {txt!r} -> {' '.join(out)}")
-                    else:
-                        print(f"[lyrics] rejected {txt!r}: no phonemes generated")
-                    if not out and self.db and not [t for t in toks if t not in self.db.lang.phonemes()]:
-                        out = toks
+                        by_low = {p.lower(): p for p in self.db.lang.phonemes()}
+                        out = [by_low.get(re.sub(r"\d+$", "", t).lower(), t) for t in out]
+                    if not out and self.db and not [t for t in txt.split() if t not in self.db.lang.phonemes()]:
+                        out = txt.split()
                     if out and (not self.db or not [t for t in out if t not in self.db.lang.phonemes()]):
                         self._set_phonemes(n, out); self.dirty = True
                         print(f"[lyrics] {txt!r} -> {' '.join(out)}")
                     else:
-                        print(f"[lyrics] rejected {txt!r}: phonemes not in the voice's lang.ini")
+                        missing = [t for t in out if t not in self.db.lang.phonemes()] if out and self.db else []
+                        if missing:
+                            print(f"[lyrics] rejected {txt!r}: generated {' '.join(out)}, missing from lang.ini: {' '.join(missing)}")
+                        else:
+                            print(f"[lyrics] rejected {txt!r}: no phonemes generated")
         if self._ph_win is not None: self.cv.delete(self._ph_win); self._ph_win = None
         self.e_np.destroy(); self.focus_set(); self.end_gesture(); self.draw_all()
+        self.render()  # Immediate rerender on inline edit
 
     def cv_move(self, ev):
         if not self.drag: return
@@ -1366,6 +1515,7 @@ class Roll2App(tk.Tk):
         self.db.cfg.bright = self.bri(); self.db.cfg.tension = self.ten()
         self.db.cfg.exc_template = self.set_exc.get(); self.db.cfg.use_spp = bool(self.set_spp.get())
         rws, _l = plan(self.db, self.notes, self.beat_ms())
+        self.y_start_ms = rws[0]["s"] if rws else 0.0
         self.l_time.configure(text="rendering"); self.update_idletasks()
         def work():
             try:
@@ -1379,7 +1529,7 @@ class Roll2App(tk.Tk):
                 msg = str(e); self.after(0, lambda: messagebox.showerror("Render", msg))
         threading.Thread(target=work, daemon=True).start()
 
-    def _paint_transport(self): self.b_play.configure(text="❚❚" if self.playing else "▶")
+    def _paint_transport(self): self.b_play.configure(text="❚" if self.playing else "▶")
 
     def toggle_play(self):
         if self.playing: self.stop(); return
@@ -1397,25 +1547,56 @@ class Roll2App(tk.Tk):
     def _start_play(self):
         if self.y is None: return
         from scipy.io import wavfile
-        sr = self.db.cfg.sample_rate; tot_ms = len(self.y) / sr * 1000.
-        off_ms = min(max(self.play_ms, 0.), tot_ms); off = int(off_ms / 1000. * sr)
+        sr = self.db.cfg.sample_rate
+        tot_ms = len(self.y) / sr * 1000.
+        
+        # Calculate offset into the buffer based on timeline play_ms
+        y_start_ms = getattr(self, 'y_start_ms', 0.0)
+        off_ms = self.play_ms - y_start_ms
+        
+        # If playhead is before the buffer start, jump it forward
+        if off_ms < 0:
+            self.play_ms = y_start_ms
+            off_ms = 0.0
+        
+        # Clamp to buffer bounds
+        off = int(off_ms / 1000. * sr)
+        if off >= len(self.y):
+            off = len(self.y) - 1
+                
         y = self.y[off:] * self.vol()
         if not len(y): return
+        
         p = os.path.join(tempfile.gettempdir(), "svs_roll.wav")
         wavfile.write(p, sr, (y * 32767).astype(np.int16))
-        try: self.player = subprocess.Popen(["afplay", p])
+        try:
+            self.player = subprocess.Popen(["afplay", p])
         except Exception:
-            try: os.startfile(p); self.player = None
+            try:
+                os.startfile(p); self.player = None
             except Exception: return
-        self.play_off = off / sr; self.play_t0 = time.time()
-        self.playing = True; self._paint_transport(); self.follow_playhead(); self._tick()
+            
+        self.play_off = off / sr
+        self.play_t0 = time.time()
+        self.playing = True
+        self._paint_transport()
+        self.follow_playhead()
+        self._tick()
 
     def _tick(self):
         if not self.playing: return
         pos = self.play_off + (time.time() - self.play_t0)
         tot = len(self.y) / self.db.cfg.sample_rate if self.y is not None else 0.
-        if pos >= tot: self.stop_play(); self.play_ms = 0.; self.draw_playhead(); return
-        self.play_ms = pos * 1000.; self.draw_playhead(); self.follow_playhead(); self.after(40, self._tick)
+        if pos >= tot:
+            self.stop_play()
+            self.play_ms = 0.
+            self.draw_playhead()
+            return
+        # Convert buffer time back to timeline time
+        self.play_ms = pos * 1000. + getattr(self, 'y_start_ms', 0.0)
+        self.draw_playhead()
+        self.follow_playhead()
+        self.after(40, self._tick)
 
     def do_export(self):
         if self.y is None: messagebox.showerror("Export", "render first"); return
@@ -1485,6 +1666,7 @@ class Roll2App(tk.Tk):
             for k, v in (data.get("params") or {}).items():
                 if k in self.pv: self.pv[k].set(v)
             self.dirty = True; self.draw_all()
+            self.render()  # Immediate rerender on load
         except Exception as e: messagebox.showerror("Load", str(e))
 
 def main():
