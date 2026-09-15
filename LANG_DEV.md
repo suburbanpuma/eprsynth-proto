@@ -47,14 +47,14 @@ Use standard ISO 639-1 or 639-2 codes, for example;
 
 | Code | Language | Example |
 |------|----------|---------|
-| `ja` | Japanese | `ja` |
-| `en` | English | `en` |
-| `fr` | French | `fr` |
-| `de` | German | `de` |
-| `es` | Spanish | `es` |
-| `ko` | Korean | `ko` |
-| `zh` | Chinese | `zh` |
-| `it` | Italian | `it` |
+| `ja` | Japanese | `ja, ja-romaji, ja-classic` |
+| `en` | English | `en, en-arpabet, en-vccv` |
+| `fr` | French | `fr, fr-millefeuille, fr-m2rUg` |
+| `de` | German | `de, de-marzipan, de-cvc` |
+| `es` | Spanish | `es, es-yya, es-njokis` |
+| `ko` | Korean | `ko, ko-coda, ko-cvc` |
+| `zh` | Chinese | `zh, zh-pinyin, zh-xsampa` |
+| `it` | Italian | `it, it-makku, it-yya` |
 
 You can use **suffixes** for phoneme sets:
 - `en-arpa` - ARPAbet phonemes
