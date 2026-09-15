@@ -36,11 +36,12 @@ The engine is built upon established techniques in audio signal processing and n
 *   **Modern UI:** Flat, dark/orange interface with thin scroll rails and custom canvas faders.
 *   **Curve Editing:** Drawable lanes for Pitch, Volume, Gender, Voicing, Breathiness, Brightness, Tension, and Formants (F1/F2/F3).
 *   **Vibrato:** Fully draggable vibrato envelopes with ease-in/out, frequency, and amplitude controls.
-*   **Articulation Strip:** Visual timeline of phonemes and diphones. Drag handles to adjust chain heads, pre-onsets, releases, and internal phoneme timings.
+*   **Phoneme Timing Editor:** The editor offers multiple ways to visualize the phoneme and diphones. By default, Simple Timing is on, which shows only phoneme duration and a waveform before it. By clicking on its button, you can change to Advanced Timing, which shows phoneme duration on top, and articulation/sustain duration below it. In both states you can drag the white handles and the box edges to adjust timing.
 *   **Settings Pane:** Persisted engine defaults (excitation template, SPP/EpR toggle, global parameters) saved locally, independent of project files.
 
 ### Lyrics & G2P Workflow
 *   **Inline Editors:** Double-click the note body to enter lyrics; double-click the top phoneme label to edit raw phonemes.
+*   **Direct Phoneme Input:** To bypass the G2P and write phonemes on the lyrics textbox, you add a period before the text (for example, phn > p h n, .phn > phn).
 *   **Phoneme Lock:** Manually editing phonemes engages a "lock" that prevents lyric commits from overwriting your manual work.
 *   **OpenUtau G2P Integration:** Supports unzipped G2P packs (Dictionary + ONNX model). Automatically selects the correct pack based on the voice's language code (e.g., `en-arpa` maps to `g2p-en-arpa`).
 *   **Symbol Mapping:** `convert.txt` support to map G2P symbols (like ARPAbet or X-SAMPA) directly to the engine's native phoneme set.
