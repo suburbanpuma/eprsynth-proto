@@ -103,9 +103,9 @@ The engine is built upon established techniques in audio signal processing and n
 *   **Playback:** Press `Space` to play/pause. (Note: Space is disabled while typing in text boxes).
 
 ### 3. Lyrics and Phonemes
-*   **Entering Lyrics:** Double-click the **body** of a note. A text box appears. Type a word (e.g., `loula`) and press `Enter`. The engine will run it through the G2P pack and place the phonemes on the note.
-*   **Editing Phonemes:** Double-click the **orange phoneme text** above the note. Edit the raw symbols (e.g., `l ow l ah`) and press `Enter`. This automatically engages the **Lock**.
-*   **The Lock:** When locked, typing new lyrics will update the displayed lyric text but will *not* overwrite the manually edited phonemes. Click the `lock` chip in the right-click note menu to toggle it.
+*   **Entering Lyrics:** Double-click the **body** of a note. A text box appears. Type a word (e.g., `love`) and press `Enter`. The engine will run it through the G2P pack and place the phonemes on the note.
+*   **Editing Phonemes:** Double-click the **orange phoneme text** above the note. Edit the raw symbols (e.g., `l ah v`) and press `Enter`. This automatically engages the **Lock**.
+*   **Phoneme Edit Lock:** When locked, typing new lyrics will update the displayed lyric text but will *not* overwrite the manually edited phonemes. Click the `lock` chip in the right-click note menu to toggle it.
 *   **Articulation Strip:** The bottom timeline shows phoneme blocks. Drag the white vertical bars to adjust internal phoneme timings or the orange blocks to adjust diphone splits.
 
 ### 4. Settings & Parameters
