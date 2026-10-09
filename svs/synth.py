@@ -1,7 +1,6 @@
 # =============================================================================
 # synth.py — Concatenative EpR engine with SPP rendering, modeled voiced
 # residual, and global + curve + baked per-unit expression parameters.
-#
 # Per-frame priority: baked unit arrays (f0r/gain/voi/bre/gen/bri/ten/form,
 # f1..f3 warps) > drawn pencil curves > global cfg scalars. Portamento
 # transitions (cfg.pt_trans) reshape the base f0 first (applied before the
@@ -12,16 +11,18 @@
 # silence so the song keeps its timing. Fast passages time-compress units
 # with SPP phase rebasing; recorded-f0 outliers are median-clamped per row so
 # the transposition ratio can't spike at transitions (and ratio is clamped to
-# +-1 octave as a safety net).
+# +-1 octave as a safety net). Sustain loops are crossfaded at every wrap
+# (_loop_frames: per-harmonic SPP phase continuity + fig.7 envelope morph)
+# so held notes sound continuous instead of stitched.
 # =============================================================================
 import json, os
 import numpy as np
-
 from . import langcfg, manifest
 from .config import AnalysisConfig
 from .epr import epr_ideal_db
 
 DEFAULT_OPTS = dict(trans_frames=8, ss_intp=1.0, phase_align=True, xfade_ms=15.0)
+
 
 def note_to_midi(s):
     s = s.strip()
@@ -32,7 +33,9 @@ def note_to_midi(s):
         acc += 1 if s[i] == "#" else -1; i += 1
     return 12 * (int(s[i:]) + 1) + n + acc
 
+
 def midi_to_hz(m): return 440.0 * 2 ** ((m - 69) / 12.0)
+
 
 class DB:
     def __init__(self, path):
@@ -119,6 +122,7 @@ class DB:
         f0s = arr["f0"][arr["f0"] > 0]
         return arr, (float(np.median(f0s)) if len(f0s) else 220.0), i0, i1
 
+
 def _frame(arr, i, transp):
     """Extract one synthesis frame from a unit array at index i, transposed.
     Baked per-unit tweak arrays (from the dev GUI's BAKE) override defaults."""
@@ -150,12 +154,14 @@ def _frame(arr, i, transp):
         fr["spp"] = None
     return fr
 
+
 def _phase_model(fh, res):
     """Each resonance adds a linear pi shift across its bandwidth (ICMC §3.2)."""
     th = np.zeros_like(fh)
     for F, Bw, A in res:
         th += np.pi * np.clip((fh - (F - Bw)) / (2 * Bw), 0, 1)
     return th
+
 
 def _env(fr, f, cfg, vt_scale=1.0):
     """EpR envelope (dB). vt_scale scales only the VOCAL-TRACT part (VT
@@ -168,6 +174,7 @@ def _env(fr, f, cfg, vt_scale=1.0):
     return m + np.interp(f / vt_scale,
                          np.arange(len(fr["dss"])) * cfg.dss_step, fr["dss"])
 
+
 def _anchors(fr):
     """EpR anchor points (F0,F1,F2,F3) for spectral morphing (SMAC-03 §6.2)."""
     pts = [fr["f0"]] + [float(F) for F, Bw, A in fr["res"][1:] if F > 0][:3]
@@ -176,6 +183,67 @@ def _anchors(fr):
     out = [pts[0]]
     for p in pts[1:]: out.append(max(p, out[-1] + 100.))
     return np.array(out)
+
+
+def _loop_frames(st, i0, i1, req, stransp, cfg, K=8):
+    """req frames from the P1..TRANS loop with seamless wraps:
+    - fig.7 anchor/envelope morph over the last K frames of each pass toward
+      the pass head (same trick _join uses at row boundaries), so the spectral
+      shape arrives at the loop-start shape instead of stepping;
+    - SPP phase continuity at every wrap, tracked PER HARMONIC in a dict
+      (k = round(f/f0r)): peak counts vary frame to frame, so per-index phase
+      arrays cannot be rebased (broadcast errors). Harmonics that survive the
+      wrap continue from the previous frame at their recorded frequency,
+      exactly like spp_acc does inside synth_frames.
+    """
+    nloop = max(1, i1 - i0)
+    K = min(K, max(1, nloop // 2))
+    hop = cfg.hop_s
+    out = []
+    fix = {}                 # harmonic k -> accumulated phase correction
+    prev = None              # (k array, final phase array) of last emitted frame
+    prev_idx = None
+    while len(out) < req:
+        pas = [_frame(st, i0 + (j % nloop), stransp) for j in range(nloop)]
+        if len(pas) > K:
+            lf, rf = pas[-1], pas[0]
+            if lf["voiced"] and rf["voiced"]:
+                Lpts, Rpts = _anchors(lf), _anchors(rf)
+                gg = np.arange(0., min(cfg.sample_rate / 2, cfg.dss_fmax), 50.)
+                dv = (_env(rf, gg, cfg) - _env(lf, np.interp(gg, Rpts, Lpts), cfg))
+                md = (Lpts, Rpts, gg, dv)
+                for j, f in enumerate(pas[-K:]):
+                    if f["voiced"]:
+                        f["warp"] = ((j + 1) / K, md)
+        for j, f in enumerate(pas):
+            if len(out) >= req: break
+            idx = i0 + (j % nloop)
+            spp = f.get("spp")
+            if spp is not None and len(spp):
+                spp = np.array(spp, copy=True)
+                f0r = max(float(f.get("f0r", 30.) or 30.), 30.)
+                k = np.clip(np.round(spp[:, 1] / f0r), 1, 65536).astype(int)
+                add = np.array([fix.get(kk, 0.) for kk in k], float)
+                if prev is not None and idx != prev_idx + 1:
+                    # wrapped: every surviving harmonic continues from the
+                    # previous frame's final phase at its recorded frequency
+                    pk, pph = prev
+                    pmap = dict(zip(pk, pph))
+                    for ii, kk in enumerate(k):
+                        if kk in pmap:
+                            target = pmap[kk] + 2 * np.pi * spp[ii, 1] * hop
+                            d = target - (spp[ii, 3] + add[ii])
+                            fix[kk] = fix.get(kk, 0.) + d
+                            add[ii] += d
+                spp[:, 3] += add
+                prev = (k, spp[:, 3].copy())
+                prev_idx = idx
+                f["spp"] = spp
+            else:
+                prev = None; prev_idx = None
+            out.append(f)
+    return out
+
 
 def glottal_template(fs, dur_s=0.004):
     """Rosenberg-like glottal pulse (all-pass phase shaper for the comb)."""
@@ -188,6 +256,7 @@ def glottal_template(fs, dur_s=0.004):
     b = (t >= tp) & (t < tp + tn)
     g[b] = 0.5 * (1 + np.cos(np.pi * (t[b] - tp) / tn))
     return g / (g.max() or 1.)
+
 
 def synth_frames(frames, cfg):
     fs = cfg.sample_rate; N = cfg.fft_size; hop = int(cfg.hop_s * fs)
@@ -202,7 +271,7 @@ def synth_frames(frames, cfg):
     bri0 = getattr(cfg, "bright", 0.0); ten0 = getattr(cfg, "tension", 0.0)
     pulse = 0.0                                   # glottal phase carried across frames
     vr_ptr = 0.0                                  # residual loop read pointer
-    spp_acc = {}                                  # eq.2 accumulated phase per harmonic
+    spp_acc = {}                                   # eq.2 accumulated phase per harmonic
     tmpl_ph = None
     if getattr(cfg, "exc_template", "delta") == "glottal":
         tmpl_ph = np.angle(np.fft.rfft(glottal_template(fs), N))
@@ -287,7 +356,7 @@ def synth_frames(frames, cfg):
                         fout = max(1e-3, vv.get("fout", 0.25) * durs)
                         venv = min(1., t / fin, (durs - t) / fout)
                         dev += vv["amp"] * max(0., venv) * \
-                            np.sin(2 * np.pi * vv["freq"] * t)
+                               np.sin(2 * np.pi * vv["freq"] * t)
                 if dev:
                     fr = dict(fr, f0=fr["f0"] * 2 ** (dev / 1200.))
         # ---- baked per-frame values outrank curves/scalars ----
@@ -342,7 +411,6 @@ def synth_frames(frames, cfg):
                 env = _env(fr, bins, cfg, vt_scale)
             # ---- BREATH: high-tilted aspiration mask (0 <~1k -> 1 >~4k)
             tilt = 1. / (1. + np.exp(-np.log2(np.maximum(bins, 1.) / 2000.) / 0.5))
-
             spp = fr.get("spp")
             use_spp = getattr(cfg, "use_spp", True) and spp is not None \
                 and len(spp) and bl is None
@@ -473,6 +541,7 @@ def synth_frames(frames, cfg):
     winsum[winsum < 1e-3] = 1e-3
     return (out / winsum)[margin:]
 
+
 def _join(L, R, opts, cfg):
     """Boundary corrections between concatenated rows; returns sample offset."""
     fs = cfg.sample_rate; hop = int(cfg.hop_s * fs)
@@ -497,10 +566,11 @@ def _join(L, R, opts, cfg):
         return dt
     X = int(opts["xfade_ms"] / 1000 * fs)           # unvoiced joint: gain crossfade
     if X > 0:
-        r_ = np.linspace(0., 1., X)
-        for j, fr in enumerate(L[-X:]): fr["gain"] = fr.get("gain", 1.) * (1 - r_[j])
-        for j, fr in enumerate(R[:X]): fr["gain"] = fr.get("gain", 1.) * r_[j]
+        r = np.linspace(0., 1., X)
+        for j, fr in enumerate(L[-X:]): fr["gain"] = fr.get("gain", 1.) * (1 - r[j])
+        for j, fr in enumerate(R[:X]): fr["gain"] = fr.get("gain", 1.) * r[j]
     return -X
+
 
 def row_frames(db, pair, dur_ms, midi, log=None, pmidi=None, split=0.):
     """Assemble the frame sequence of one row (diphone or sustain).
@@ -573,7 +643,7 @@ def row_frames(db, pair, dur_ms, midi, log=None, pmidi=None, split=0.):
         req = max(1, int(round(dur_ms / 1000 / cfg.hop_s)))
         nloop = i1 - i0                            # P1..TRANS loop region
         stransp = hz / max(st_rec, 30.)
-        fr = [_frame(st, i0 + (i % nloop), stransp) for i in range(req)]
+        fr = _loop_frames(st, i0, i1, req, stransp, cfg)
         if log: log(f"  {ph} @ {midi}: sustain row (loop {nloop} fr, {req} fr)")
         return finish(fr, dur_ms)
 
@@ -596,8 +666,7 @@ def row_frames(db, pair, dur_ms, midi, log=None, pmidi=None, split=0.):
         stransp = hz / max(st_rec, 30.)
         nf = min(len(fout), max(0, req - len(fin)))
         head = [_frame(st, i0 + (i % nloop), stransp) for i in range(nf)]
-        tail = [_frame(st, i0 + (i % nloop), stransp)
-                for i in range(max(0, req - len(fin) - nf))]
+        tail = _loop_frames(st, i0, i1, max(0, req - len(fin) - nf), stransp, cfg)
         for i in range(nf):                         # TRANS..END -> steady blend
             fout[i]["blend"] = ((i + 1) / max(1, nf), head[i])
         frames = fin + fout[:nf] + tail
@@ -640,17 +709,18 @@ def row_frames(db, pair, dur_ms, midi, log=None, pmidi=None, split=0.):
         frames = seq                                # req == 0 -> as recorded
     return finish(frames, dur_ms)
 
+
 def render_rows(db, rows, opts=None, log=None):
     """Render a MicroScore row list into a normalized waveform."""
     opts = dict(DEFAULT_OPTS, **(opts or {}))
     cfg = db.cfg
     if log:
-        log(f"  globals: pitch={getattr(cfg, 'pitch_cents', 0.):+.0f}c "
-            f"gender={getattr(cfg, 'gender', 1.):.2f} gshift={getattr(cfg, 'formant_shift', .1):.2f} "
-            f"voi={getattr(cfg, 'voicing', 1.):.2f} breath={getattr(cfg, 'breath', 1.):.2f} "
-            f"bright={getattr(cfg, 'bright', 0.):+.1f}dB tension={getattr(cfg, 'tension', 0.):+.1f}dB "
-            f"mod={getattr(cfg, 'modulation', 0.):.2f} "
-            f"pt={len(getattr(cfg, 'pt_trans', None) or [])} "
+        log(f"  globals: pitch={getattr(cfg, 'pitch_cents', 0.):+.0f}c  "
+            f"gender={getattr(cfg, 'gender', 1.):.2f} gshift={getattr(cfg, 'formant_shift', .1):.2f}  "
+            f"voi={getattr(cfg, 'voicing', 1.):.2f} breath={getattr(cfg, 'breath', 1.):.2f}  "
+            f"bright={getattr(cfg, 'bright', 0.):+.1f}dB tension={getattr(cfg, 'tension', 0.):+.1f}dB  "
+            f"mod={getattr(cfg, 'modulation', 0.):.2f}  "
+            f"pt={len(getattr(cfg, 'pt_trans', None) or [])}  "
             f"pencil={len(getattr(cfg, 'pitch_curve', None) or [])} segs")
     G, cum = [], 0
     for r in rows:
